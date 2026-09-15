@@ -19,7 +19,7 @@ SCRYFALL_COLLECTION_URL = "https://api.scryfall.com/cards/collection"
 MOXFIELD_API = "https://api2.moxfield.com/v2/decks/all/{deck_id}"
 
 HEADERS = {
-    "User-Agent": "MTG Card Image Downloader/1.1 (Flask local app)",
+    "User-Agent": "Dw-Deck/1.1 (Flask local app)",
     "Accept": "application/json",
 }
 

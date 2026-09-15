@@ -1,17 +1,21 @@
-# MTG Card Image Downloader
+# Dw-Deck
 
-A Flask web app that:
+Features:
 
-- accepts a pasted Magic: The Gathering deck list or a public Moxfield deck URL
-- resolves cards through the Scryfall API
-- previews cards grouped by card type
-- expands MDFC entries such as `Sink into Stupor // Soporific Springs`
-- imports only the Moxfield mainboard for Commander/EDH decks
-- imports mainboard + sideboard for non-Commander formats
-- downloads one PNG **per physical copy** into a ZIP
-- includes a `manifest.csv`
+- Reads both pasted lists and moxfield links.
+- Differentiates between EDH and 60 card formats.
+- Previews both mainboard and sideboard accordingly for 60 card formats.
+- Previews cards grouped by card type.
+- Previews MDFC cards with no issues and downloads both frontside and backside of cards.
+- Includes a `manifest.csv` file inside the ZIP.
+- Zip will also include multiple copies of a card under the "*_05" format.
 
-## Run
+Extra info:
+
+- Imports only the Moxfield mainboard for Commander/EDH decks.
+- Support user inputting moxfield link into the list of cards (smh).
+
+## Run locally
 
 ```bash
 python -m venv .venv
@@ -22,7 +26,7 @@ pip install -r requirements.txt
 python app.py
 ```
 
-Open http://127.0.0.1:5000
+Runs on http://127.0.0.1:5000 by default.
 
 ## Download behavior
 
