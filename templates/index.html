@@ -3,13 +3,13 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>MTG Card Image Downloader</title>
+  <title>Dw-Deck</title>
   <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
 </head>
 <body>
 <main class="container">
   <header>
-    <h1>MTG Card Image Downloader</h1>
+    <h1>Dw-Deck</h1>
     <p>Paste a deck list or a public Moxfield deck URL, preview the cards, then download their PNGs as a ZIP.</p>
   </header>
 
@@ -52,6 +52,16 @@
     <div id="missing" class="warning hidden"></div>
     <div id="groups"></div>
   </section>
+
+  <footer class="site-footer">
+    <p>&copy; <span id="year"></span> Dw-Deck. All rights reserved.</p>
+    <p class="contact">
+      Contact:
+      <a href="https://moxfield.com/users/DrG" target="_blank" rel="noopener noreferrer">Moxfield</a>
+      ·
+      <a href="https://discord.com/users/212661657980108802" target="_blank" rel="noopener noreferrer">Discord</a>
+    </p>
+  </footer>
 </main>
 
 <script>
@@ -235,6 +245,8 @@ function escapeHtml(value) {
 function escapeAttr(value) {
   return escapeHtml(value);
 }
+
+document.getElementById("year").textContent = new Date().getFullYear();
 </script>
 </body>
 </html>
