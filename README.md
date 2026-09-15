@@ -10,7 +10,7 @@
 - Previews cards grouped by card type.
 - Previews MDFC cards with no issues and downloads both frontside and backside of cards.
 - Includes a `manifest.csv` file inside the ZIP.
-- Zip will also include multiple copies of a card under the "*_05" format.
+- Zip will also include multiple copies of a card under the **"*_05"** format.
 
 **Extra info:**
 

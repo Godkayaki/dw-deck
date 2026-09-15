@@ -28,9 +28,9 @@
 
       <div id="list-input">
         <textarea name="decklist" placeholder="4 Lightning Bolt
-4 Mountain
-2 Sol Ring
-1 Atraxa, Praetors' Voice"></textarea>
+        4 Mountain
+        2 Sol Ring
+        1 Atraxa, Praetors' Voice"></textarea>
       </div>
 
       <div id="moxfield-input" class="hidden">
@@ -49,7 +49,7 @@
         <h2>Cards</h2>
         <p id="summary"></p>
       </div>
-      <button id="download" class="primary">Download PNG ZIP</button>
+      <button id="download" class="primary">Download cards</button>
     </div>
     <p id="download-notice" class="download-notice hidden">Downloading decklist, this may take a bit</p>
 
@@ -240,7 +240,7 @@ downloadBtn.addEventListener("click", async () => {
     statusEl.className = "error";
   } finally {
     downloadBtn.disabled = false;
-    downloadBtn.textContent = "Download PNG ZIP";
+    downloadBtn.textContent = "Download cards";
     downloadNotice.classList.add("hidden");
   }
 });

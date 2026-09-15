@@ -37,6 +37,7 @@ textarea, input[type=url] {
   color: #eee;
   padding: 14px;
   font: 14px/1.5 ui-monospace, SFMono-Regular, Menlo, monospace;
+  resize: vertical;
 }
 input[type=url] { min-height: auto; }
 .primary { background: #6d3cff; color: white; margin-top: 14px; }
