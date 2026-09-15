@@ -1,4 +1,4 @@
-<p align="center"> <img src="logo/logo.png" width="60"> </p>
+<p align="center"> <img src="logo/logo.png" width="120"> </p>
 
 # Dw-Deck
 
