@@ -4,12 +4,16 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>Dw-Deck</title>
+  <link rel="icon" type="image/x-icon" href="/logo/logo.ico">
   <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
 </head>
 <body>
 <main class="container">
   <header>
-    <h1>Dw-Deck</h1>
+    <div class="brand">
+      <img src="/logo/logo.png" alt="Dw-Deck logo" class="logo">
+      <h1>Dw-Deck</h1>
+    </div>
     <p>Paste a deck list or a public Moxfield deck URL, preview the cards, then download their PNGs as a ZIP.</p>
   </header>
 
@@ -54,8 +58,13 @@
   </section>
 
   <footer class="site-footer">
-    <p>&copy; <span id="year"></span> Dw-Deck. All rights reserved.</p>
+    <p>
+      &copy; <span id="year"></span> Dw-Deck. Licensed under
+      <a href="https://github.com/Godkayaki/dw-deck?tab=GPL-3.0-1-ov-file" target="_blank" rel="noopener noreferrer">GPL-3.0</a>.
+    </p>
     <p class="contact">
+      <a href="https://github.com/Godkayaki/dw-deck" target="_blank" rel="noopener noreferrer">Source code</a>
+      ·
       Contact:
       <a href="https://moxfield.com/users/DrG" target="_blank" rel="noopener noreferrer">Moxfield</a>
       ·

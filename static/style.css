@@ -9,6 +9,9 @@ body { margin: 0; }
 header { margin-bottom: 24px; }
 h1 { margin-bottom: 8px; }
 header p { color: #aaa; }
+.brand { display: flex; align-items: center; gap: 12px; }
+.brand h1 { margin: 0; }
+.logo { width: 60px; height: 60px; object-fit: contain; border-radius: 4px; }
 .panel, .card-group {
   background: #181a20;
   border: 1px solid #2a2d35;

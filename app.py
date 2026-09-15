@@ -1,13 +1,19 @@
 import io
+import os
 import re
 import zipfile
 from collections import defaultdict
 from urllib.parse import urlparse
 
 import requests
-from flask import Flask, render_template, request, jsonify, send_file
+from flask import Flask, render_template, request, jsonify, send_file, send_from_directory
 
 app = Flask(__name__)
+
+# The logo assets live in a top-level `logo/` folder (sibling to app.py),
+# not inside `static/`, so Flask's default static handling won't serve
+# them — they need their own route.
+LOGO_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)), "logo")
 
 SCRYFALL_COLLECTION_URL = "https://api.scryfall.com/cards/collection"
 MOXFIELD_API = "https://api2.moxfield.com/v2/decks/all/{deck_id}"
@@ -356,6 +362,11 @@ def slug_filename(name):
 @app.get("/")
 def index():
     return render_template("index.html")
+
+
+@app.get("/logo/<path:filename>")
+def logo(filename):
+    return send_from_directory(LOGO_DIR, filename)
 
 
 @app.post("/api/preview")
