@@ -1,0 +1,90 @@
+:root {
+  font-family: Inter, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  color: #eee;
+  background: #101114;
+}
+* { box-sizing: border-box; }
+body { margin: 0; }
+.container { max-width: 1400px; margin: 0 auto; padding: 32px 20px 60px; }
+header { margin-bottom: 24px; }
+h1 { margin-bottom: 8px; }
+header p { color: #aaa; }
+.panel, .card-group {
+  background: #181a20;
+  border: 1px solid #2a2d35;
+  border-radius: 14px;
+  padding: 18px;
+}
+.tabs { display: flex; gap: 8px; margin-bottom: 16px; }
+.tab, button {
+  border: 0;
+  border-radius: 9px;
+  padding: 10px 14px;
+  cursor: pointer;
+  font: inherit;
+}
+.tab { background: #252832; color: #ddd; }
+.tab.active { background: #4f46e5; color: white; }
+textarea, input[type=url] {
+  width: 100%;
+  min-height: 130px;
+  background: #0f1014;
+  border: 1px solid #343743;
+  border-radius: 9px;
+  color: #eee;
+  padding: 14px;
+  font: 14px/1.5 ui-monospace, SFMono-Regular, Menlo, monospace;
+}
+input[type=url] { min-height: auto; }
+.primary { background: #4f46e5; color: white; margin-top: 14px; }
+.primary:disabled { opacity: .6; cursor: wait; }
+.hidden { display: none !important; }
+#status { margin-top: 12px; min-height: 22px; }
+.loading { color: #f0c674; }
+.success { color: #7bd88f; }
+.error { color: #ff7b7b; }
+.results-header {
+  display: flex; justify-content: space-between; align-items: center;
+  gap: 20px; margin: 28px 0 14px;
+}
+.results-header h2 { margin: 0 0 4px; }
+.results-header p { margin: 0; color: #aaa; }
+.warning {
+  background: #3a2c11; color: #ffd98a;
+  padding: 12px 14px; border-radius: 9px; margin-bottom: 14px;
+}
+.card-group { margin-bottom: 18px; }
+.card-group h3 { margin: 0 0 14px; }
+.card-group h3 span { color: #888; font-weight: normal; font-size: .9em; }
+.grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
+  gap: 14px;
+}
+.card {
+  overflow: hidden;
+  background: #101114;
+  border: 1px solid #292c34;
+  border-radius: 10px;
+}
+.card img, .no-image {
+  width: 100%;
+  aspect-ratio: 488 / 680;
+  object-fit: cover;
+  display: block;
+}
+.no-image {
+  display: grid;
+  place-items: center;
+  color: #777;
+  background: #202229;
+  text-align: center;
+  padding: 10px;
+}
+.card-info { padding: 10px; }
+.card-info strong, .card-info span { display: block; }
+.card-info span { color: #999; font-size: 12px; margin-top: 4px; }
+@media (max-width: 650px) {
+  .results-header { align-items: stretch; flex-direction: column; }
+  .grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+}

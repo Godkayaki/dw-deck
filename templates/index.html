@@ -1,0 +1,192 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>MTG Card Image Downloader</title>
+  <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+</head>
+<body>
+<main class="container">
+  <header>
+    <h1>MTG Card Image Downloader</h1>
+    <p>Paste a deck list or a public Moxfield deck URL, preview the cards, then download their PNGs as a ZIP.</p>
+  </header>
+
+  <section class="panel">
+    <div class="tabs">
+      <button class="tab active" data-source="list">Deck list</button>
+      <button class="tab" data-source="moxfield">Moxfield URL</button>
+    </div>
+
+    <form id="preview-form">
+      <input type="hidden" name="source" id="source" value="list">
+
+      <div id="list-input">
+        <textarea name="decklist" placeholder="4 Lightning Bolt
+4 Mountain
+2 Sol Ring
+1 Atraxa, Praetors' Voice"></textarea>
+      </div>
+
+      <div id="moxfield-input" class="hidden">
+        <input type="url" name="moxfield_url" placeholder="https://moxfield.com/decks/...">
+      </div>
+
+      <button class="primary" type="submit">Preview cards</button>
+    </form>
+
+    <div id="status"></div>
+  </section>
+
+  <section id="results" class="hidden">
+    <div class="results-header">
+      <div>
+        <h2>Cards</h2>
+        <p id="summary"></p>
+      </div>
+      <button id="download" class="primary">Download PNG ZIP</button>
+    </div>
+
+    <div id="missing" class="warning hidden"></div>
+    <div id="groups"></div>
+  </section>
+</main>
+
+<script>
+const form = document.getElementById("preview-form");
+const source = document.getElementById("source");
+const listInput = document.getElementById("list-input");
+const moxfieldInput = document.getElementById("moxfield-input");
+const statusEl = document.getElementById("status");
+const results = document.getElementById("results");
+const groups = document.getElementById("groups");
+const summary = document.getElementById("summary");
+const missing = document.getElementById("missing");
+const downloadBtn = document.getElementById("download");
+
+let currentCards = [];
+
+document.querySelectorAll(".tab").forEach(button => {
+  button.addEventListener("click", () => {
+    document.querySelectorAll(".tab").forEach(b => b.classList.remove("active"));
+    button.classList.add("active");
+    source.value = button.dataset.source;
+    listInput.classList.toggle("hidden", source.value !== "list");
+    moxfieldInput.classList.toggle("hidden", source.value !== "moxfield");
+  });
+});
+
+form.addEventListener("submit", async (event) => {
+  event.preventDefault();
+  statusEl.textContent = "Loading cards…";
+  statusEl.className = "loading";
+  results.classList.add("hidden");
+
+  try {
+    const response = await fetch("/api/preview", {
+      method: "POST",
+      body: new FormData(form)
+    });
+    const data = await response.json();
+    if (!response.ok) throw new Error(data.error || "Preview failed.");
+
+    currentCards = data.cards;
+    renderCards(data);
+    statusEl.textContent = `Loaded ${data.unique_cards} unique cards.`;
+    statusEl.className = "success";
+  } catch (error) {
+    statusEl.textContent = error.message;
+    statusEl.className = "error";
+  }
+});
+
+function renderCards(data) {
+  results.classList.remove("hidden");
+  summary.textContent = `${data.total_cards} cards • ${data.unique_cards} unique`;
+
+  if (data.missing?.length) {
+    missing.classList.remove("hidden");
+    missing.textContent = "Not found by Scryfall: " + data.missing.join(", ");
+  } else {
+    missing.classList.add("hidden");
+  }
+
+  const grouped = {};
+  for (const card of data.cards) {
+    (grouped[card.type] ||= []).push(card);
+  }
+
+  groups.innerHTML = "";
+  for (const [type, cards] of Object.entries(grouped)) {
+    const section = document.createElement("section");
+    section.className = "card-group";
+    const typeTotal = cards.reduce((sum, card) => sum + card.quantity, 0);
+    section.innerHTML = `<h3>${escapeHtml(type)} <span>${typeTotal}</span></h3>`;
+
+    const grid = document.createElement("div");
+    grid.className = "grid";
+
+    for (const card of cards) {
+      const article = document.createElement("article");
+      article.className = "card";
+      article.innerHTML = `
+        ${card.image
+          ? `<img loading="lazy" src="${escapeAttr(card.image)}" alt="${escapeAttr(card.name)}">`
+          : `<div class="no-image">No PNG available</div>`}
+        <div class="card-info">
+          <strong>${escapeHtml(card.name)}</strong>
+          <span>${card.quantity}× · ${escapeHtml(card.type_line)}</span>
+        </div>`;
+      grid.appendChild(article);
+    }
+
+    section.appendChild(grid);
+    groups.appendChild(section);
+  }
+}
+
+downloadBtn.addEventListener("click", async () => {
+  downloadBtn.disabled = true;
+  downloadBtn.textContent = "Building ZIP…";
+
+  try {
+    const response = await fetch("/api/download", {
+      method: "POST",
+      headers: {"Content-Type": "application/json"},
+      body: JSON.stringify({cards: currentCards})
+    });
+
+    if (!response.ok) {
+      const data = await response.json();
+      throw new Error(data.error || "Download failed.");
+    }
+
+    const blob = await response.blob();
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = "mtg-card-images.zip";
+    a.click();
+    URL.revokeObjectURL(url);
+  } catch (error) {
+    statusEl.textContent = error.message;
+    statusEl.className = "error";
+  } finally {
+    downloadBtn.disabled = false;
+    downloadBtn.textContent = "Download PNG ZIP";
+  }
+});
+
+function escapeHtml(value) {
+  return String(value ?? "").replace(/[&<>"']/g, ch => ({
+    "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#039;"
+  }[ch]));
+}
+
+function escapeAttr(value) {
+  return escapeHtml(value);
+}
+</script>
+</body>
+</html>
