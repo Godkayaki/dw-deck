@@ -1,7 +1,7 @@
 :root {
   font-family: Inter, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
   color: #eee;
-  background: #101114;
+  background: #0d1117;
 }
 * { box-sizing: border-box; }
 body { margin: 0; }
@@ -27,7 +27,7 @@ header p { color: #aaa; }
   font: inherit;
 }
 .tab { background: #252832; color: #ddd; }
-.tab.active { background: #4f46e5; color: white; }
+.tab.active { background: #6d3cff; color: white; }
 textarea, input[type=url] {
   width: 100%;
   min-height: 130px;
@@ -39,7 +39,7 @@ textarea, input[type=url] {
   font: 14px/1.5 ui-monospace, SFMono-Regular, Menlo, monospace;
 }
 input[type=url] { min-height: auto; }
-.primary { background: #4f46e5; color: white; margin-top: 14px; }
+.primary { background: #6d3cff; color: white; margin-top: 14px; }
 .primary:disabled { opacity: .6; cursor: wait; }
 .hidden { display: none !important; }
 #status { margin-top: 12px; min-height: 22px; }

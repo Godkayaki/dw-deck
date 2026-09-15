@@ -1,3 +1,5 @@
+<p style="text-align:center"> <img src="logo/logo.png" width="60"> </p>
+
 # Dw-Deck
 
 Features:
