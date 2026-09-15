@@ -66,8 +66,8 @@ def expand_mdfcs(cards):
 
 
 SECTION_HEADERS = {
-    "commander": "main", "commanders": "main", "mainboard": "main",
-    "deck": "main", "companion": "main",
+    "commander": "commander", "commanders": "commander",
+    "mainboard": "main", "deck": "main", "companion": "main",
     "sideboard": "side", "maybeboard": "side",
 }
 
@@ -171,7 +171,8 @@ def _extract_cards_from_board(board):
 
 def extract_moxfield_cards(payload):
     """
-    Import only the mainboard, plus the sideboard when the deck is not Commander.
+    Import the commanders (if any), the mainboard, plus the sideboard when
+    the deck is not Commander.
 
     Moxfield has changed response shapes over time, so board extraction accepts
     both dictionaries and lists. Commander/EDH detection is intentionally
@@ -179,6 +180,7 @@ def extract_moxfield_cards(payload):
     """
     mainboard = payload.get("mainboard")
     sideboard = payload.get("sideboard")
+    commanders = payload.get("commanders")
 
     if mainboard is None:
         # Some responses nest boards under "boards".
@@ -186,6 +188,7 @@ def extract_moxfield_cards(payload):
         if isinstance(boards, dict):
             mainboard = boards.get("mainboard")
             sideboard = boards.get("sideboard")
+            commanders = boards.get("commanders")
 
     if mainboard is None:
         raise ValueError("Moxfield returned a deck without a readable mainboard.")
@@ -193,6 +196,12 @@ def extract_moxfield_cards(payload):
     cards = _extract_cards_from_board(mainboard)
     for c in cards:
         c["board"] = "main"
+
+    if commanders:
+        commander_cards = _extract_cards_from_board(commanders)
+        for c in commander_cards:
+            c["board"] = "commander"
+        cards = commander_cards + cards
 
     # Detect Commander/EDH from common Moxfield format fields.
     format_values = []
@@ -223,7 +232,7 @@ def extract_moxfield_cards(payload):
         raise ValueError("Moxfield returned a deck, but no mainboard cards could be read.")
 
     # Merge identical entries that might occur across boards, keeping
-    # mainboard and sideboard counts of the same card name separate.
+    # commander/mainboard/sideboard counts of the same card name separate.
     merged = defaultdict(int)
     for card in cards:
         merged[(card["board"], card["name"])] += card["quantity"]
@@ -427,14 +436,14 @@ def preview():
             })
 
         type_order = {name: i for i, (name, _) in enumerate(CARD_TYPES)}
-        board_order = {"main": 0, "side": 1}
+        board_order = {"commander": 0, "main": 1, "side": 2}
         rendered.sort(key=lambda c: (
-            board_order.get(c["board"], 0),
+            board_order.get(c["board"], 1),
             # Mainboard cards are grouped by type in the UI, so sort by
-            # type first. Sideboard cards are shown as one flat,
-            # uncategorized list, so type shouldn't affect their order —
+            # type first. Commander and Sideboard cards are shown as flat,
+            # uncategorized lists, so type shouldn't affect their order —
             # just mana value, then name.
-            0 if c["board"] == "side" else type_order.get(c["type"], 999),
+            type_order.get(c["type"], 999) if c["board"] == "main" else 0,
             c["mana_value"],
             c["name"].lower(),
         ))

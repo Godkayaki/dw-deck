@@ -112,16 +112,22 @@ function renderCards(data) {
     missing.classList.add("hidden");
   }
 
-  const mainCards = data.cards.filter(card => card.board !== "side");
+  const commanderCards = data.cards.filter(card => card.board === "commander");
   const sideCards = data.cards.filter(card => card.board === "side");
+  const mainCards = data.cards.filter(card => card.board !== "commander" && card.board !== "side");
 
   groups.innerHTML = "";
 
-  if (sideCards.length) {
+  if (commanderCards.length || sideCards.length) {
+    if (commanderCards.length) {
+      groups.appendChild(renderBoard("Commander", commanderCards, false));
+    }
     groups.appendChild(renderBoard("Mainboard", mainCards, true));
-    groups.appendChild(renderBoard("Sideboard", sideCards, false));
+    if (sideCards.length) {
+      groups.appendChild(renderBoard("Sideboard", sideCards, false));
+    }
   } else {
-    // No sideboard (e.g. Commander decks) — skip the extra heading.
+    // No commander or sideboard — skip the extra headings.
     renderTypeGroups(groups, mainCards);
   }
 }
