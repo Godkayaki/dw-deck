@@ -49,6 +49,12 @@ input[type=url] { min-height: auto; }
 }
 .results-header h2 { margin: 0 0 4px; }
 .results-header p { margin: 0; color: #aaa; }
+.download-notice {
+  color: #ff7b7b;
+  margin: 10px 0 0;
+  text-align: right;
+  font-size: 14px;
+}
 .warning {
   background: #3a2c11; color: #ffd98a;
   padding: 12px 14px; border-radius: 9px; margin-bottom: 14px;

@@ -47,6 +47,7 @@
       </div>
       <button id="download" class="primary">Download PNG ZIP</button>
     </div>
+    <p id="download-notice" class="download-notice hidden">Downloading decklist, this may take a bit</p>
 
     <div id="missing" class="warning hidden"></div>
     <div id="groups"></div>
@@ -64,6 +65,7 @@ const groups = document.getElementById("groups");
 const summary = document.getElementById("summary");
 const missing = document.getElementById("missing");
 const downloadBtn = document.getElementById("download");
+const downloadNotice = document.getElementById("download-notice");
 
 let currentCards = [];
 
@@ -192,6 +194,9 @@ downloadBtn.addEventListener("click", async () => {
   downloadBtn.disabled = true;
   downloadBtn.textContent = "Building ZIP…";
 
+  const totalCopies = currentCards.reduce((sum, card) => sum + card.quantity, 0);
+  downloadNotice.classList.toggle("hidden", totalCopies <= 60);
+
   try {
     const response = await fetch("/api/download", {
       method: "POST",
@@ -217,6 +222,7 @@ downloadBtn.addEventListener("click", async () => {
   } finally {
     downloadBtn.disabled = false;
     downloadBtn.textContent = "Download PNG ZIP";
+    downloadNotice.classList.add("hidden");
   }
 });
 
