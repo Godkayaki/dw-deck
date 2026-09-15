@@ -56,6 +56,13 @@ input[type=url] { min-height: auto; }
 .card-group { margin-bottom: 18px; }
 .card-group h3 { margin: 0 0 14px; }
 .card-group h3 span { color: #888; font-weight: normal; font-size: .9em; }
+.board-group { margin-bottom: 32px; }
+.board-group h2 {
+  margin: 0 0 16px;
+  padding-bottom: 10px;
+  border-bottom: 1px solid #2a2d35;
+}
+.board-group h2 span { color: #888; font-weight: normal; font-size: .8em; }
 .grid {
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));

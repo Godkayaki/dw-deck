@@ -59,25 +59,43 @@ def expand_mdfcs(cards):
                     "quantity": card["quantity"],
                     "source_name": card["name"],
                     "face_of": card["name"],
+                    "board": card.get("board", "main"),
                 })
                 break
     return expanded
 
 
+SECTION_HEADERS = {
+    "commander": "main", "commanders": "main", "mainboard": "main",
+    "deck": "main", "companion": "main",
+    "sideboard": "side", "maybeboard": "side",
+}
+
+# Headers that just label a type grouping within whichever board is
+# currently active (e.g. "Creatures" under a deck list) — they don't
+# switch the board, just get skipped.
+TYPE_HEADERS = {
+    "creatures", "instants", "sorceries", "artifacts", "enchantments",
+    "lands", "planeswalkers", "battles", "tokens",
+}
+
+
 def parse_decklist(text):
+    # Keyed by (board, name) so the same card name can be tracked
+    # separately if it shows up in both the mainboard and the sideboard.
     counts = defaultdict(int)
+    board = "main"
 
     for raw in text.splitlines():
         line = raw.strip()
         if not line or line.startswith("#"):
             continue
 
-        if line.lower().rstrip(":") in {
-            "commander", "commanders", "mainboard", "sideboard",
-            "maybeboard", "companion", "deck", "creatures", "instants",
-            "sorceries", "artifacts", "enchantments", "lands",
-            "planeswalkers", "battles", "tokens",
-        }:
+        header = line.lower().rstrip(":")
+        if header in SECTION_HEADERS:
+            board = SECTION_HEADERS[header]
+            continue
+        if header in TYPE_HEADERS:
             continue
 
         m = re.match(r"^\s*(\d+)\s*x?\s+(.+?)\s*$", line, re.I)
@@ -88,12 +106,15 @@ def parse_decklist(text):
         name = clean_name(m.group(2))
 
         if qty > 0 and name:
-            counts[name] += qty
+            counts[(board, name)] += qty
 
     if not counts:
         raise ValueError("No cards were found. Use lines such as '4 Lightning Bolt'.")
 
-    return [{"name": name, "quantity": qty} for name, qty in counts.items()]
+    return [
+        {"name": name, "quantity": qty, "board": board}
+        for (board, name), qty in counts.items()
+    ]
 
 
 def moxfield_deck_id(url):
@@ -170,6 +191,8 @@ def extract_moxfield_cards(payload):
         raise ValueError("Moxfield returned a deck without a readable mainboard.")
 
     cards = _extract_cards_from_board(mainboard)
+    for c in cards:
+        c["board"] = "main"
 
     # Detect Commander/EDH from common Moxfield format fields.
     format_values = []
@@ -191,17 +214,24 @@ def extract_moxfield_cards(payload):
         is_commander = is_commander or "commander" in fmt_text or "edh" in fmt_text
 
     if not is_commander and sideboard is not None:
-        cards.extend(_extract_cards_from_board(sideboard))
+        side_cards = _extract_cards_from_board(sideboard)
+        for c in side_cards:
+            c["board"] = "side"
+        cards.extend(side_cards)
 
     if not cards:
         raise ValueError("Moxfield returned a deck, but no mainboard cards could be read.")
 
-    # Merge identical entries that might occur across boards.
+    # Merge identical entries that might occur across boards, keeping
+    # mainboard and sideboard counts of the same card name separate.
     merged = defaultdict(int)
     for card in cards:
-        merged[card["name"]] += card["quantity"]
+        merged[(card["board"], card["name"])] += card["quantity"]
 
-    return [{"name": name, "quantity": qty} for name, qty in merged.items()]
+    return [
+        {"name": name, "quantity": qty, "board": board}
+        for (board, name), qty in merged.items()
+    ]
 
 
 def fetch_moxfield(url):
@@ -335,23 +365,53 @@ def preview():
         # Expand MDFCs before asking Scryfall to resolve names.
         cards = expand_mdfcs(cards)
 
-        scryfall_cards, missing = scryfall_collection(cards)
-
-        # Build quantity lookup after MDFC expansion.
+        # Aggregate quantity per (name, board) — the same card name can
+        # legitimately appear in both the mainboard and the sideboard with
+        # separate counts (e.g. a Companion).
         quantities = defaultdict(int)
         for c in cards:
-            quantities[c["name"].casefold()] += c["quantity"]
+            key = (c["name"].casefold(), c.get("board", "main"))
+            quantities[key] += c["quantity"]
+
+        # Only fetch each unique card name from Scryfall once, even if it
+        # appears on both boards.
+        seen_names = set()
+        unique_cards = []
+        for c in cards:
+            key = c["name"].casefold()
+            if key not in seen_names:
+                seen_names.add(key)
+                unique_cards.append(c)
+
+        scryfall_cards, missing = scryfall_collection(unique_cards)
+
+        # Cards with multiple faces (MDFC, transform, split, Adventure,
+        # Omen, ...) are requested by a single face's name (e.g. "Sagu
+        # Wildling") but Scryfall returns them under their full combined
+        # name (e.g. "Sagu Wildling // Roost Seek"). Index by every name
+        # the card could have been requested under so the lookup below
+        # always finds it, instead of silently dropping the card.
+        scryfall_by_name = {}
+        for card in scryfall_cards:
+            names = {card.get("name", "")}
+            for face in card.get("card_faces") or []:
+                if face.get("name"):
+                    names.add(face["name"])
+            for name in names:
+                scryfall_by_name.setdefault(name.casefold(), card)
 
         rendered = []
-        for card in scryfall_cards:
-            key = card.get("name", "").casefold()
-            qty = quantities.get(key, 1)
+        for (name_key, board), qty in quantities.items():
+            card = scryfall_by_name.get(name_key)
+            if not card:
+                continue
             faces = card_face_images(card)
 
             rendered.append({
                 "id": card.get("id"),
                 "name": card.get("name"),
                 "quantity": qty,
+                "board": board,
                 "type_line": card.get("type_line", ""),
                 "type": type_bucket(card),
                 "mana_value": card.get("cmc", 0) or 0,
@@ -367,17 +427,28 @@ def preview():
             })
 
         type_order = {name: i for i, (name, _) in enumerate(CARD_TYPES)}
+        board_order = {"main": 0, "side": 1}
         rendered.sort(key=lambda c: (
-            type_order.get(c["type"], 999),
+            board_order.get(c["board"], 0),
+            # Mainboard cards are grouped by type in the UI, so sort by
+            # type first. Sideboard cards are shown as one flat,
+            # uncategorized list, so type shouldn't affect their order —
+            # just mana value, then name.
+            0 if c["board"] == "side" else type_order.get(c["type"], 999),
             c["mana_value"],
             c["name"].lower(),
         ))
+
+        sideboard_count = sum(c["quantity"] for c in rendered if c["board"] == "side")
 
         return jsonify({
             "cards": rendered,
             "missing": missing,
             "total_cards": sum(c["quantity"] for c in rendered),
             "unique_cards": len(rendered),
+            "mainboard_total_cards": sum(c["quantity"] for c in rendered) - sideboard_count,
+            "sideboard_total_cards": sideboard_count,
+            "has_sideboard": sideboard_count > 0,
         })
 
     except requests.HTTPError as e:

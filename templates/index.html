@@ -112,38 +112,74 @@ function renderCards(data) {
     missing.classList.add("hidden");
   }
 
+  const mainCards = data.cards.filter(card => card.board !== "side");
+  const sideCards = data.cards.filter(card => card.board === "side");
+
+  groups.innerHTML = "";
+
+  if (sideCards.length) {
+    groups.appendChild(renderBoard("Mainboard", mainCards, true));
+    groups.appendChild(renderBoard("Sideboard", sideCards, false));
+  } else {
+    // No sideboard (e.g. Commander decks) — skip the extra heading.
+    renderTypeGroups(groups, mainCards);
+  }
+}
+
+function renderBoard(label, cards, groupByType) {
+  const boardSection = document.createElement("section");
+  boardSection.className = "board-group";
+  const boardTotal = cards.reduce((sum, card) => sum + card.quantity, 0);
+  boardSection.innerHTML = `<h2>${escapeHtml(label)} <span>${boardTotal}</span></h2>`;
+
+  const boardBody = document.createElement("div");
+  if (groupByType) {
+    renderTypeGroups(boardBody, cards);
+  } else {
+    // Sideboard: one flat, uncategorized grid — no Creatures/Lands/etc.
+    // subheadings.
+    boardBody.appendChild(renderGrid(cards));
+  }
+  boardSection.appendChild(boardBody);
+
+  return boardSection;
+}
+
+function renderTypeGroups(container, cards) {
   const grouped = {};
-  for (const card of data.cards) {
+  for (const card of cards) {
     (grouped[card.type] ||= []).push(card);
   }
 
-  groups.innerHTML = "";
-  for (const [type, cards] of Object.entries(grouped)) {
+  for (const [type, typeCards] of Object.entries(grouped)) {
     const section = document.createElement("section");
     section.className = "card-group";
-    const typeTotal = cards.reduce((sum, card) => sum + card.quantity, 0);
+    const typeTotal = typeCards.reduce((sum, card) => sum + card.quantity, 0);
     section.innerHTML = `<h3>${escapeHtml(type)} <span>${typeTotal}</span></h3>`;
-
-    const grid = document.createElement("div");
-    grid.className = "grid";
-
-    for (const card of cards) {
-      const article = document.createElement("article");
-      article.className = "card";
-      article.innerHTML = `
-        ${card.image
-          ? `<img loading="lazy" src="${escapeAttr(card.image)}" alt="${escapeAttr(card.name)}">`
-          : `<div class="no-image">No PNG available</div>`}
-        <div class="card-info">
-          <strong>${escapeHtml(card.name)}</strong>
-          <span>${card.quantity}× · ${escapeHtml(card.type_line)}</span>
-        </div>`;
-      grid.appendChild(article);
-    }
-
-    section.appendChild(grid);
-    groups.appendChild(section);
+    section.appendChild(renderGrid(typeCards));
+    container.appendChild(section);
   }
+}
+
+function renderGrid(cards) {
+  const grid = document.createElement("div");
+  grid.className = "grid";
+
+  for (const card of cards) {
+    const article = document.createElement("article");
+    article.className = "card";
+    article.innerHTML = `
+      ${card.image
+        ? `<img loading="lazy" src="${escapeAttr(card.image)}" alt="${escapeAttr(card.name)}">`
+        : `<div class="no-image">No PNG available</div>`}
+      <div class="card-info">
+        <strong>${escapeHtml(card.name)}</strong>
+        <span>${card.quantity}× · ${escapeHtml(card.type_line)}</span>
+      </div>`;
+    grid.appendChild(article);
+  }
+
+  return grid;
 }
 
 downloadBtn.addEventListener("click", async () => {
