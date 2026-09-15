@@ -1,4 +1,4 @@
-<p style="text-align:center"> <img src="logo/logo.png" width="60"> </p>
+<p align="center"> <img src="logo/logo.png" width="60"> </p>
 
 # Dw-Deck
 
@@ -37,13 +37,13 @@ Runs on http://127.0.0.1:5000 by default.
 
 ## Download behavior
 
-If the deck contains:
+**If the deck contains:**
 
 ```text
 4 Lightning Bolt
 ```
 
-the ZIP contains:
+The ZIP file would contain 4 copies of Lightning Bolt with the "*_04" format;
 
 ```text
 cards/Lightning_Bolt_01.png
@@ -52,31 +52,30 @@ cards/Lightning_Bolt_03.png
 cards/Lightning_Bolt_04.png
 ```
 
-For an MDFC:
+**For an MDFC:**
 
 ```text
 4 Sink into Stupor // Soporific Springs
 ```
 
-the preview contains both:
+If you would download 4 copies of *Sink into Stupor // Soporific Springs*, the ZIP would contain four PNGs of each face (8 PNG files total);
 
-- Sink into Stupor
-- Soporific Springs
+```text
+cards/Sink_into_Stupor_01.png
+cards/Sink_into_Stupor_02.png
+cards/Sink_into_Stupor_03.png
+cards/Sink_into_Stupor_04.png
+cards/Soporific_Springs_01.png
+cards/Soporific_Springs_02.png
+cards/Soporific_Springs_03.png
+cards/Soporific_Springs_04.png
+```
 
-and the ZIP contains four PNGs of each face (8 PNG files total).
 
-## Moxfield behavior
-
-Moxfield imports are restricted to:
-
-- Commander/EDH: mainboard only
-- Other formats: mainboard + sideboard
-
-Moxfield's public API response format can change, so the board parsing is isolated in
-`extract_moxfield_cards()` and `_extract_cards_from_board()`.
 
 ## WIP
 
 - Add support to change the desired print of the card.
 - Be able to download a single card from the preview.
-- Language support (*this seems kinda unrealistic*)
+- Language support (*this seems kinda unrealistic*).
+- Archidekt support.
