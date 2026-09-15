@@ -2,7 +2,7 @@
 
 # Dw-Deck
 
-Features:
+**Features:**
 
 - Reads both pasted lists and moxfield links.
 - Differentiates between EDH and 60 card formats.
@@ -12,10 +12,15 @@ Features:
 - Includes a `manifest.csv` file inside the ZIP.
 - Zip will also include multiple copies of a card under the "*_05" format.
 
-Extra info:
+**Extra info:**
 
 - Imports only the Moxfield mainboard for Commander/EDH decks.
 - Support user inputting moxfield link into the list of cards (smh).
+- Moxfield lists need to be *public*, or at least *unlisted*.
+
+## Preview
+
+<img src="https://i.imgur.com/79HIB9I.png">
 
 ## Run locally
 
@@ -69,3 +74,9 @@ Moxfield imports are restricted to:
 
 Moxfield's public API response format can change, so the board parsing is isolated in
 `extract_moxfield_cards()` and `_extract_cards_from_board()`.
+
+## WIP
+
+- Add support to change the desired print of the card.
+- Be able to download a single card from the preview.
+- Language support (*this seems kinda unrealistic*)
