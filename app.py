@@ -55,8 +55,11 @@ def card_identity(card):
 
     Preference order: an exact Scryfall id (Moxfield's representative
     printing for the entry) > a specific set + collector number (from a
-    Moxfield printingData split) > falling back to name-only, which is
-    what plain pasted decklists use.
+    Moxfield printingData split, or a pasted line like "(H1R) 11") > a
+    set with no collector number (a pasted line like "(H1R)" with the
+    number left off — still enough to pin the printing within that set)
+    > falling back to name-only, which is what a plain pasted line with
+    no print annotation at all uses.
     """
     scryfall_id = card.get("scryfall_id")
     if scryfall_id:
@@ -67,12 +70,15 @@ def card_identity(card):
     if set_code and number:
         return ("print", str(set_code).lower(), str(number))
 
+    if set_code:
+        return ("set_name", str(set_code).lower(), card["name"].casefold())
+
     return ("name", card["name"].casefold())
 
 
 def has_pinned_printing(card):
     """True when a card entry already points at one exact Scryfall printing."""
-    return card_identity(card)[0] in ("id", "print")
+    return card_identity(card)[0] in ("id", "print", "set_name")
 
 
 def expand_mdfcs(cards):
@@ -135,7 +141,11 @@ def parse_card_line(line):
     Handles Moxfield's own export shape:
         1 Urza, Lord High Artificer (H1R) 11 *E*
         4 Counterspell (MMQ) 67
-    as well as plain lines with no print info:
+    a set with no collector number, which still pins the printing to
+    that set (just not one exact copy of a multi-printing set — Scryfall
+    picks a match within it):
+        1 Urza, Lord High Artificer (H1R)
+    as well as plain lines with no print info at all:
         3 Swamp
 
     The trailing finish marker (*E*, *F*, etc.) is recognized and
@@ -162,9 +172,19 @@ def parse_card_line(line):
         set_code = print_match.group(2).lower()
         number = print_match.group(3)
     else:
-        name = clean_name(rest)
-        set_code = None
-        number = None
+        # "Name (SET)" or "Name [SET]" with no collector number after it.
+        set_only_match = re.search(
+            r"^(.*?)\s+[\(\[]([A-Za-z0-9]{2,8})[\)\]]\s*$",
+            rest,
+        )
+        if set_only_match:
+            name = clean_name(set_only_match.group(1))
+            set_code = set_only_match.group(2).lower()
+            number = None
+        else:
+            name = clean_name(rest)
+            set_code = None
+            number = None
 
     return qty, name, set_code, number
 
@@ -209,9 +229,10 @@ def parse_decklist(text):
         board_val = key[0]
         name, set_code, number = representative[key]
         entry = {"name": name, "quantity": qty, "board": board_val}
-        if set_code and number:
+        if set_code:
             entry["set"] = set_code
-            entry["collector_number"] = number
+            if number:
+                entry["collector_number"] = number
         result.append(entry)
     return result
 
@@ -461,6 +482,8 @@ def scryfall_collection(cards):
                 identifier = {"id": ident[1]}
             elif ident[0] == "print":
                 identifier = {"set": ident[1], "collector_number": ident[2]}
+            elif ident[0] == "set_name":
+                identifier = {"name": card["name"], "set": ident[1]}
             else:
                 identifier = {"name": card["name"]}
 
@@ -655,15 +678,19 @@ def preview():
 
         scryfall_cards, missing = scryfall_collection(unique_cards)
 
-        # Index results three ways so any of the identity kinds above can
+        # Index results four ways so any of the identity kinds above can
         # find its match:
         #  - by Scryfall id (Moxfield's pinned printing)
-        #  - by (set, collector_number) (a Moxfield printingData split)
+        #  - by (set, collector_number) (a Moxfield printingData split, or
+        #    a pasted "(SET) 123" line)
+        #  - by (set, name) (a pasted "(SET)" line with no collector
+        #    number — pins the set but lets Scryfall pick within it)
         #  - by name/face name (plain decklists, or MDFC/transform/split/
         #    Adventure/Omen cards, which Scryfall returns under their full
         #    combined name even when requested by a single face's name)
         scryfall_by_id = {}
         scryfall_by_print = {}
+        scryfall_by_set_name = {}
         scryfall_by_name = {}
         for card in scryfall_cards:
             cid = card.get("id")
@@ -673,6 +700,8 @@ def preview():
             set_code, number = card.get("set"), card.get("collector_number")
             if set_code and number:
                 scryfall_by_print[(str(set_code).lower(), str(number))] = card
+            if set_code:
+                scryfall_by_set_name[(str(set_code).lower(), card.get("name", "").casefold())] = card
 
             names = {card.get("name", "")}
             for face in card.get("card_faces") or []:
@@ -689,6 +718,8 @@ def preview():
             scryfall_by_id[cid] = prefer_english_printing(scryfall_by_id[cid])
         for print_key in list(scryfall_by_print):
             scryfall_by_print[print_key] = prefer_english_printing(scryfall_by_print[print_key])
+        for set_name_key in list(scryfall_by_set_name):
+            scryfall_by_set_name[set_name_key] = prefer_english_printing(scryfall_by_set_name[set_name_key])
 
         rendered = []
         for (ident, board), qty in quantities.items():
@@ -697,6 +728,8 @@ def preview():
                 card = scryfall_by_id.get(ident[1])
             elif kind == "print":
                 card = scryfall_by_print.get((ident[1], ident[2]))
+            elif kind == "set_name":
+                card = scryfall_by_set_name.get((ident[1], ident[2]))
             else:
                 card = scryfall_by_name.get(ident[1])
 
