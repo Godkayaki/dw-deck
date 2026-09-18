@@ -7,6 +7,9 @@
   <link rel="icon" type="image/x-icon" href="/logo/logo.ico">
   <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
 </head>
+
+<button id="go-to-top" aria-label="Go to top" title="Go to top"> ↑ </button>
+
 <body>
 <main class="container">
   <header>
@@ -309,6 +312,27 @@ function escapeAttr(value) {
 }
 
 document.getElementById("year").textContent = new Date().getFullYear();
+
+// to the top button
+const goToTopButton = document.getElementById("go-to-top");
+
+// Show the button after scrolling down a little.
+window.addEventListener("scroll", () => {
+    if (window.scrollY > 400) {
+        goToTopButton.classList.add("visible");
+    } else {
+        goToTopButton.classList.remove("visible");
+    }
+});
+
+// Smoothly scroll back to the top.
+goToTopButton.addEventListener("click", () => {
+    window.scrollTo({
+        top: 0,
+        behavior: "smooth"
+    });
+});
+
 </script>
 </body>
 </html>
