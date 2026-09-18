@@ -19,7 +19,7 @@ SCRYFALL_COLLECTION_URL = "https://api.scryfall.com/cards/collection"
 MOXFIELD_API = "https://api2.moxfield.com/v2/decks/all/{deck_id}"
 
 HEADERS = {
-    "User-Agent": "Dw-Deck/1.1 (Flask local app)",
+    "User-Agent": "MTG Card Image Downloader/1.1 (Flask local app)",
     "Accept": "application/json",
 }
 
@@ -570,6 +570,78 @@ def download():
         return jsonify({"error": f"Could not download a card image: {e}"}), 502
     except Exception as e:
         app.logger.exception("Download failed")
+        return jsonify({"error": f"Download failed: {e}"}), 500
+
+
+@app.post("/api/download_card")
+def download_card():
+    """
+    Download a single card from the hover button on a card tile. Always
+    fetches exactly one copy of each face, regardless of how many copies
+    are in the deck — this is "grab this card", not "grab my playset".
+    """
+    try:
+        payload = request.get_json(force=True)
+        card = payload.get("card")
+        if not card:
+            return jsonify({"error": "No card provided."}), 400
+
+        name = card.get("name", "card")
+
+        faces = card.get("faces") or (
+            [{"name": name, "image": card.get("image")}]
+            if card.get("image") else []
+        )
+        faces = [f for f in faces if f.get("image")]
+
+        if not faces:
+            return jsonify({"error": "No image available for this card."}), 400
+
+        # Single-faced card: hand back a bare PNG, no zip needed.
+        if len(faces) == 1:
+            r = requests.get(
+                faces[0]["image"],
+                headers={"User-Agent": HEADERS["User-Agent"]},
+                timeout=60,
+            )
+            r.raise_for_status()
+
+            buffer = io.BytesIO(r.content)
+            buffer.seek(0)
+
+            return send_file(
+                buffer,
+                as_attachment=True,
+                download_name=f"{slug_filename(faces[0].get('name') or name)}.png",
+                mimetype="image/png",
+            )
+
+        # MDFC/transform/split/Adventure card: zip both faces together.
+        memory_file = io.BytesIO()
+        with zipfile.ZipFile(memory_file, "w", zipfile.ZIP_DEFLATED) as zf:
+            for face in faces:
+                r = requests.get(
+                    face["image"],
+                    headers={"User-Agent": HEADERS["User-Agent"]},
+                    timeout=60,
+                )
+                r.raise_for_status()
+                filename = f"{slug_filename(face.get('name') or name)}.png"
+                zf.writestr(filename, r.content)
+
+        memory_file.seek(0)
+
+        return send_file(
+            memory_file,
+            as_attachment=True,
+            download_name=f"{slug_filename(name)}.zip",
+            mimetype="application/zip",
+        )
+
+    except requests.RequestException as e:
+        return jsonify({"error": f"Could not download the card image: {e}"}), 502
+    except Exception as e:
+        app.logger.exception("Single-card download failed")
         return jsonify({"error": f"Download failed: {e}"}), 500
 
 

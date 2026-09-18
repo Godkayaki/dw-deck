@@ -71,10 +71,9 @@ cards/Soporific_Springs_03.png
 cards/Soporific_Springs_04.png
 ```
 
-
-
 ## WIP
 
+- Add "go to the top" button
 - Add support to change the desired print of the card.
 - Be able to download a single card from the preview.
 - Language support (*this seems kinda unrealistic*).

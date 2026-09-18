@@ -49,7 +49,7 @@
         <h2>Cards</h2>
         <p id="summary"></p>
       </div>
-      <button id="download" class="primary">Download cards</button>
+      <button id="download" class="primary">Download PNG ZIP</button>
     </div>
     <p id="download-notice" class="download-notice hidden">Downloading decklist, this may take a bit</p>
 
@@ -59,11 +59,11 @@
 
   <footer class="site-footer">
     <p>
-      &copy; <span id="year"></span> <b>Dw-Deck</b> by <b>Drg</b>. Licensed under
-      <a href="https://github.com/Godkayaki/dw-deck/blob/main/LICENSE" target="_blank" rel="noopener noreferrer">GPL-3.0</a>.
+      &copy; <span id="year"></span> Dw-Deck. Licensed under
+      <a href="https://github.com/Godkayaki/dw-deck?tab=GPL-3.0-1-ov-file" target="_blank" rel="noopener noreferrer">GPL-3.0</a>.
     </p>
     <p class="contact">
-      <a href="https://github.com/Godkayaki/dw-deck" target="_blank" rel="noopener noreferrer">Source code</a>
+      <a href="https://github.com/Godkayaki/dw-deck?tab=GPL-3.0-1-ov-file" target="_blank" rel="noopener noreferrer">Source code</a>
       ·
       Contact:
       <a href="https://moxfield.com/users/DrG" target="_blank" rel="noopener noreferrer">Moxfield</a>
@@ -203,10 +203,62 @@ function renderGrid(cards) {
         <strong>${escapeHtml(card.name)}</strong>
         <span>${card.quantity}× · ${escapeHtml(card.type_line)}</span>
       </div>`;
+
+    if (card.image) {
+      const cardDownloadBtn = document.createElement("button");
+      cardDownloadBtn.type = "button";
+      cardDownloadBtn.className = "card-download-btn";
+      cardDownloadBtn.title = `Download ${card.name}`;
+      cardDownloadBtn.setAttribute("aria-label", `Download ${card.name}`);
+      cardDownloadBtn.textContent = "⬇ Download";
+      cardDownloadBtn.addEventListener("click", (event) => {
+        event.stopPropagation();
+        downloadSingleCard(card, cardDownloadBtn);
+      });
+      article.appendChild(cardDownloadBtn);
+    }
+
     grid.appendChild(article);
   }
 
   return grid;
+}
+
+async function downloadSingleCard(card, button) {
+  const originalText = button.textContent;
+  button.disabled = true;
+  button.textContent = "…";
+
+  try {
+    const response = await fetch("/api/download_card", {
+      method: "POST",
+      headers: {"Content-Type": "application/json"},
+      body: JSON.stringify({card})
+    });
+
+    if (!response.ok) {
+      const data = await response.json();
+      throw new Error(data.error || "Download failed.");
+    }
+
+    const disposition = response.headers.get("Content-Disposition") || "";
+    const match = disposition.match(/filename="?([^"]+)"?/);
+    const filename = match ? match[1] : `${card.name}.png`;
+
+    const blob = await response.blob();
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = filename;
+    a.click();
+    URL.revokeObjectURL(url);
+  } catch (error) {
+    statusEl.textContent = error.message;
+    statusEl.className = "error";
+  } finally {
+    button.disabled = false;
+    button.textContent = originalText;
+  }
 }
 
 downloadBtn.addEventListener("click", async () => {
@@ -240,7 +292,7 @@ downloadBtn.addEventListener("click", async () => {
     statusEl.className = "error";
   } finally {
     downloadBtn.disabled = false;
-    downloadBtn.textContent = "Download cards";
+    downloadBtn.textContent = "Download PNG ZIP";
     downloadNotice.classList.add("hidden");
   }
 });

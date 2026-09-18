@@ -1,7 +1,7 @@
 :root {
   font-family: Inter, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
   color: #eee;
-  background: #0d1117;
+  background: #101114;
 }
 * { box-sizing: border-box; }
 body { margin: 0; }
@@ -11,7 +11,7 @@ h1 { margin-bottom: 8px; }
 header p { color: #aaa; }
 .brand { display: flex; align-items: center; gap: 12px; }
 .brand h1 { margin: 0; }
-.logo { width: 60px; height: 60px; object-fit: contain; border-radius: 4px; }
+.logo { width: 40px; height: 40px; object-fit: contain; border-radius: 8px; }
 .panel, .card-group {
   background: #181a20;
   border: 1px solid #2a2d35;
@@ -27,7 +27,7 @@ header p { color: #aaa; }
   font: inherit;
 }
 .tab { background: #252832; color: #ddd; }
-.tab.active { background: #6d3cff; color: white; }
+.tab.active { background: #4f46e5; color: white; }
 textarea, input[type=url] {
   width: 100%;
   min-height: 130px;
@@ -37,10 +37,9 @@ textarea, input[type=url] {
   color: #eee;
   padding: 14px;
   font: 14px/1.5 ui-monospace, SFMono-Regular, Menlo, monospace;
-  resize: vertical;
 }
 input[type=url] { min-height: auto; }
-.primary { background: #6d3cff; color: white; margin-top: 14px; }
+.primary { background: #4f46e5; color: white; margin-top: 14px; }
 .primary:disabled { opacity: .6; cursor: wait; }
 .hidden { display: none !important; }
 #status { margin-top: 12px; min-height: 22px; }
@@ -83,7 +82,38 @@ input[type=url] { min-height: auto; }
   background: #101114;
   border: 1px solid #292c34;
   border-radius: 10px;
+  position: relative;
 }
+.card-download-btn {
+  position: absolute;
+  left: 50%;
+  bottom: 10px;
+  width: calc(100% - 20px);
+  max-width: 160px;
+  height: 34px;
+  border-radius: 17px;
+  border: none;
+  background: rgba(15, 16, 20, 0.85);
+  color: #fff;
+  font-size: 13px;
+  font-weight: 600;
+  letter-spacing: .02em;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  opacity: 0;
+  transform: translate(-50%, 6px);
+  transition: opacity .15s ease, transform .15s ease, background .15s ease;
+}
+.card:hover .card-download-btn,
+.card-download-btn:focus-visible {
+  opacity: 1;
+  transform: translate(-50%, 0);
+}
+.card-download-btn:hover { background: #6c63ff; }
+.card-download-btn:disabled { cursor: default; opacity: 1; }
 .card img, .no-image {
   width: 100%;
   aspect-ratio: 488 / 680;
