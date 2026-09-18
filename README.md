@@ -75,6 +75,8 @@ cards/Soporific_Springs_04.png
 
 - Add "go to the top" button
 - Add support to change the desired print of the card.
-- Be able to download a single card from the preview.
+- ~~Be able to download a single card from the preview.~~
+- ~~Add support for printings from Moxfield.~~
+- ~~Add support for printings when pasting lists.~~ (Still needs to allow for text with no set number)
 - Language support (*this seems kinda unrealistic*).
 - Archidekt support.
