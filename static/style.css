@@ -131,6 +131,7 @@ input[type=url] { min-height: auto; }
 .card-info { padding: 10px; }
 .card-info strong, .card-info span { display: block; }
 .card-info span { color: #999; font-size: 12px; margin-top: 4px; }
+.card-info .card-set { font-style: italic; opacity: .85; }
 @media (max-width: 650px) {
   .results-header { align-items: stretch; flex-direction: column; }
   .grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }

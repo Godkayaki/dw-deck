@@ -1,4 +1,5 @@
 import io
+import json
 import os
 import re
 import zipfile
@@ -16,6 +17,7 @@ app = Flask(__name__)
 LOGO_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)), "logo")
 
 SCRYFALL_COLLECTION_URL = "https://api.scryfall.com/cards/collection"
+SCRYFALL_CARDS_URL = "https://api.scryfall.com/cards"
 MOXFIELD_API = "https://api2.moxfield.com/v2/decks/all/{deck_id}"
 
 HEADERS = {
@@ -44,6 +46,35 @@ def clean_name(name):
     return name.strip()
 
 
+def card_identity(card):
+    """
+    A hashable key identifying exactly which physical printing a card
+    entry refers to (when known), so two different printings of the same
+    card name are tracked, fetched, and rendered as separate entries
+    instead of being collapsed into one generic name-based lookup.
+
+    Preference order: an exact Scryfall id (Moxfield's representative
+    printing for the entry) > a specific set + collector number (from a
+    Moxfield printingData split) > falling back to name-only, which is
+    what plain pasted decklists use.
+    """
+    scryfall_id = card.get("scryfall_id")
+    if scryfall_id:
+        return ("id", scryfall_id)
+
+    set_code = card.get("set")
+    number = card.get("collector_number")
+    if set_code and number:
+        return ("print", str(set_code).lower(), str(number))
+
+    return ("name", card["name"].casefold())
+
+
+def has_pinned_printing(card):
+    """True when a card entry already points at one exact Scryfall printing."""
+    return card_identity(card)[0] in ("id", "print")
+
+
 def expand_mdfcs(cards):
     """
     Expand double-faced/deadly split entries such as:
@@ -54,6 +85,15 @@ def expand_mdfcs(cards):
     """
     expanded = []
     for card in cards:
+        # When we already know the exact printing (from Moxfield's
+        # scryfall_id or a set+collector_number split), there's no need
+        # to guess at face names from the combined "A // B" string — the
+        # ID/print lookup resolves the full card object, both faces
+        # included, on its own.
+        if has_pinned_printing(card):
+            expanded.append(card)
+            continue
+
         parts = [clean_name(p) for p in card["name"].split("//")]
         parts = [p for p in parts if p]
         if len(parts) <= 1:
@@ -86,10 +126,55 @@ TYPE_HEADERS = {
 }
 
 
+def parse_card_line(line):
+    """
+    Parse one decklist line into (quantity, name, set_code, collector_number).
+    set_code/collector_number are None when the line doesn't pin a specific
+    printing.
+
+    Handles Moxfield's own export shape:
+        1 Urza, Lord High Artificer (H1R) 11 *E*
+        4 Counterspell (MMQ) 67
+    as well as plain lines with no print info:
+        3 Swamp
+
+    The trailing finish marker (*E*, *F*, etc.) is recognized and
+    discarded — this app doesn't distinguish foil/etched copies, it just
+    downloads the print's art.
+    """
+    m = re.match(r"^\s*(\d+)\s*x?\s+(.+?)\s*$", line, re.I)
+    if not m:
+        return None
+
+    qty = int(m.group(1))
+    rest = m.group(2)
+
+    # Drop a trailing foil/finish marker such as "*E*" or "*F*".
+    rest = re.sub(r"\s*\*[A-Za-z]+\*\s*$", "", rest).strip()
+
+    # "Name (SET) 123" or "Name [SET] 123" at the end of the line.
+    print_match = re.search(
+        r"^(.*?)\s+[\(\[]([A-Za-z0-9]{2,8})[\)\]]\s+([A-Za-z0-9\-]+)\s*$",
+        rest,
+    )
+    if print_match:
+        name = clean_name(print_match.group(1))
+        set_code = print_match.group(2).lower()
+        number = print_match.group(3)
+    else:
+        name = clean_name(rest)
+        set_code = None
+        number = None
+
+    return qty, name, set_code, number
+
+
 def parse_decklist(text):
-    # Keyed by (board, name) so the same card name can be tracked
-    # separately if it shows up in both the mainboard and the sideboard.
+    # Keyed by (board, name, set, collector_number) so the same card name
+    # is tracked separately if it shows up in both the mainboard and the
+    # sideboard, or pinned to two different printings within one board.
     counts = defaultdict(int)
+    representative = {}
     board = "main"
 
     for raw in text.splitlines():
@@ -104,23 +189,31 @@ def parse_decklist(text):
         if header in TYPE_HEADERS:
             continue
 
-        m = re.match(r"^\s*(\d+)\s*x?\s+(.+?)\s*$", line, re.I)
-        if not m:
+        parsed = parse_card_line(line)
+        if not parsed:
             continue
 
-        qty = int(m.group(1))
-        name = clean_name(m.group(2))
+        qty, name, set_code, number = parsed
+        if qty <= 0 or not name:
+            continue
 
-        if qty > 0 and name:
-            counts[(board, name)] += qty
+        key = (board, name.casefold(), set_code, number)
+        counts[key] += qty
+        representative[key] = (name, set_code, number)
 
     if not counts:
         raise ValueError("No cards were found. Use lines such as '4 Lightning Bolt'.")
 
-    return [
-        {"name": name, "quantity": qty, "board": board}
-        for (board, name), qty in counts.items()
-    ]
+    result = []
+    for key, qty in counts.items():
+        board_val = key[0]
+        name, set_code, number = representative[key]
+        entry = {"name": name, "quantity": qty, "board": board_val}
+        if set_code and number:
+            entry["set"] = set_code
+            entry["collector_number"] = number
+        result.append(entry)
+    return result
 
 
 def moxfield_deck_id(url):
@@ -138,41 +231,121 @@ def moxfield_deck_id(url):
 
 
 def _extract_cards_from_board(board):
-    """Extract {name, quantity} entries from a Moxfield board."""
-    counts = defaultdict(int)
+    """
+    Extract card entries from a Moxfield board.
 
-    def add_card(obj, fallback_qty=1):
+    Most entries carry one quantity plus one representative printing
+    (card.scryfall_id). But when someone splits their copies of the same
+    card across different physical printings inside Moxfield, the entry
+    instead carries a `printingData` list — one {quantity, set, cn} group
+    per printing actually used. When that's present, expand it into one
+    entry per printing instead of collapsing everything onto the single
+    representative scryfall_id, which would silently discard the other
+    printings the person picked.
+    """
+    entries = []
+
+    def add_entry(obj, fallback_qty=1):
         if not isinstance(obj, dict):
             return False
 
-        qty = obj.get("quantity", fallback_qty)
-        if not isinstance(qty, (int, float)):
-            qty = fallback_qty
-
         card = obj.get("card")
-        if isinstance(card, dict):
-            name = card.get("name")
-        else:
-            name = obj.get("name")
 
-        if name:
-            counts[str(name)] += int(qty)
+        if not isinstance(card, dict):
+            name = obj.get("name")
+            if not name:
+                return False
+            qty = obj.get("quantity", fallback_qty)
+            if not isinstance(qty, (int, float)):
+                qty = fallback_qty
+            entries.append({"name": str(name), "quantity": int(qty)})
             return True
-        return False
+
+        name = card.get("name")
+        if not name:
+            return False
+        name = str(name)
+
+        total_qty = obj.get("quantity", fallback_qty)
+        if not isinstance(total_qty, (int, float)):
+            total_qty = fallback_qty
+        total_qty = int(total_qty)
+
+        printing_data = obj.get("printingData") or obj.get("printing_data")
+        if isinstance(printing_data, list) and printing_data:
+            used_qty = 0
+            for p in printing_data:
+                if not isinstance(p, dict):
+                    continue
+                p_qty = p.get("quantity", 0)
+                if not isinstance(p_qty, (int, float)) or p_qty <= 0:
+                    continue
+                set_code = p.get("set")
+                number = p.get("cn") or p.get("number")
+                if not (set_code and number):
+                    continue
+                entries.append({
+                    "name": name,
+                    "quantity": int(p_qty),
+                    "set": set_code,
+                    "collector_number": str(number),
+                })
+                used_qty += int(p_qty)
+
+            # Any copies not accounted for in printingData fall back to
+            # the entry's single representative printing.
+            remainder = total_qty - used_qty
+            if remainder > 0:
+                scryfall_id = card.get("scryfall_id") or card.get("scryfallId")
+                entries.append({
+                    "name": name,
+                    "quantity": remainder,
+                    "scryfall_id": scryfall_id,
+                })
+            return True
+
+        scryfall_id = card.get("scryfall_id") or card.get("scryfallId")
+        entries.append({
+            "name": name,
+            "quantity": total_qty,
+            "scryfall_id": scryfall_id,
+        })
+        return True
 
     if isinstance(board, dict):
         # Common Moxfield shape: {"card-id": {"card": {...}, "quantity": 4}}
         for key, value in board.items():
-            if add_card(value):
+            if add_entry(value):
                 continue
             if isinstance(value, dict):
-                add_card(value.get("card"), value.get("quantity", 1))
+                add_entry(value.get("card"), value.get("quantity", 1))
 
     elif isinstance(board, list):
         for item in board:
-            add_card(item)
+            add_entry(item)
 
-    return [{"name": name, "quantity": qty} for name, qty in counts.items()]
+    return entries
+
+
+def _get_board(payload, name):
+    """
+    Moxfield has used a couple of response shapes: a flat top-level board
+    (payload["mainboard"] is itself the card map), and a nested one
+    (payload["boards"]["mainboard"]["cards"] is the card map, with
+    "count" alongside it). Handle both.
+    """
+    board = payload.get(name)
+    if board is not None:
+        return board
+
+    boards = payload.get("boards")
+    if isinstance(boards, dict):
+        nested = boards.get(name)
+        if isinstance(nested, dict) and "cards" in nested:
+            return nested.get("cards")
+        return nested
+
+    return None
 
 
 def extract_moxfield_cards(payload):
@@ -184,17 +357,9 @@ def extract_moxfield_cards(payload):
     both dictionaries and lists. Commander/EDH detection is intentionally
     tolerant of several likely format fields.
     """
-    mainboard = payload.get("mainboard")
-    sideboard = payload.get("sideboard")
-    commanders = payload.get("commanders")
-
-    if mainboard is None:
-        # Some responses nest boards under "boards".
-        boards = payload.get("boards")
-        if isinstance(boards, dict):
-            mainboard = boards.get("mainboard")
-            sideboard = boards.get("sideboard")
-            commanders = boards.get("commanders")
+    mainboard = _get_board(payload, "mainboard")
+    sideboard = _get_board(payload, "sideboard")
+    commanders = _get_board(payload, "commanders")
 
     if mainboard is None:
         raise ValueError("Moxfield returned a deck without a readable mainboard.")
@@ -238,15 +403,29 @@ def extract_moxfield_cards(payload):
         raise ValueError("Moxfield returned a deck, but no mainboard cards could be read.")
 
     # Merge identical entries that might occur across boards, keeping
-    # commander/mainboard/sideboard counts of the same card name separate.
+    # commander/mainboard/sideboard counts separate — and keeping distinct
+    # printings of the same card name separate too, so a deck that splits
+    # its copies across different prints (e.g. 2x old-border Forest + 2x
+    # new-border Forest) surfaces both instead of collapsing into one.
     merged = defaultdict(int)
+    representative = {}
     for card in cards:
-        merged[(card["board"], card["name"])] += card["quantity"]
+        key = (card["board"], card_identity(card))
+        merged[key] += card["quantity"]
+        representative[key] = card
 
-    return [
-        {"name": name, "quantity": qty, "board": board}
-        for (board, name), qty in merged.items()
-    ]
+    result = []
+    for (board, ident), qty in merged.items():
+        base = representative[(board, ident)]
+        entry = {"name": base["name"], "quantity": qty, "board": board}
+        if base.get("scryfall_id"):
+            entry["scryfall_id"] = base["scryfall_id"]
+        if base.get("set") and base.get("collector_number"):
+            entry["set"] = base["set"]
+            entry["collector_number"] = base["collector_number"]
+        result.append(entry)
+
+    return result
 
 
 def fetch_moxfield(url):
@@ -273,11 +452,26 @@ def scryfall_collection(cards):
 
     for start in range(0, len(cards), 75):
         batch = cards[start:start + 75]
-        payload = {"identifiers": [{"name": card["name"]} for card in batch]}
+        identifiers = []
+        label_by_identifier = {}
+
+        for card in batch:
+            ident = card_identity(card)
+            if ident[0] == "id":
+                identifier = {"id": ident[1]}
+            elif ident[0] == "print":
+                identifier = {"set": ident[1], "collector_number": ident[2]}
+            else:
+                identifier = {"name": card["name"]}
+
+            identifiers.append(identifier)
+            # not_found echoes back exactly the identifier we sent, so this
+            # lets us translate it back to a readable card name below.
+            label_by_identifier[json.dumps(identifier, sort_keys=True)] = card["name"]
 
         r = requests.post(
             SCRYFALL_COLLECTION_URL,
-            json=payload,
+            json={"identifiers": identifiers},
             headers=HEADERS,
             timeout=30,
         )
@@ -285,12 +479,43 @@ def scryfall_collection(cards):
         data = r.json()
 
         result.extend(data.get("data", []))
-        missing.extend(
-            item.get("name") or item.get("id")
-            for item in data.get("not_found", [])
-        )
+        for item in data.get("not_found", []):
+            key = json.dumps(item, sort_keys=True)
+            missing.append(
+                label_by_identifier.get(key, item.get("name") or item.get("id") or "Unknown card")
+            )
 
     return result, missing
+
+
+def prefer_english_printing(card):
+    """
+    Moxfield lets someone pin a specific printing (or per-copy split of
+    printings), which can point at a foreign-language print. We only want
+    non-English art when it's genuinely the only print available, so swap
+    in the English version of that exact printing (same set + collector
+    number) when Scryfall has one; otherwise keep what was pinned.
+    """
+    if not isinstance(card, dict) or card.get("lang", "en") == "en":
+        return card
+
+    set_code = card.get("set")
+    number = card.get("collector_number")
+    if not set_code or not number:
+        return card
+
+    try:
+        r = requests.get(
+            f"{SCRYFALL_CARDS_URL}/{set_code}/{number}/en",
+            headers=HEADERS,
+            timeout=15,
+        )
+        if r.status_code == 200:
+            return r.json()
+    except requests.RequestException:
+        pass
+
+    return card
 
 
 def type_bucket(card):
@@ -359,6 +584,28 @@ def slug_filename(name):
     return value or "card"
 
 
+def scryfall_slug(value):
+    """Lowercase, hyphen-separated slug — matches how Scryfall itself
+    formats a card name within its own download filenames."""
+    value = re.sub(r"[^A-Za-z0-9]+", "-", (value or "").lower())
+    return value.strip("-") or "card"
+
+
+def scryfall_filename(face):
+    """
+    Build a filename in the same shape Scryfall uses for its own card
+    downloads: "<set>-<collector-number>-<name-slug>", e.g. Scryfall's
+    own Hullbreaker Horror download from Innistrad Remastered is named
+    "inr-357-hullbreaker-horror". Falls back to just the name slug when
+    set/collector number aren't known (plain pasted decklists have no
+    pinned printing to pull them from).
+    """
+    set_code = (face.get("set_code") or "").lower()
+    number = str(face.get("collector_number") or "")
+    name_slug = scryfall_slug(face.get("name") or "card")
+    return "-".join(part for part in (set_code, number, name_slug) if part)
+
+
 @app.get("/")
 def index():
     return render_template("index.html")
@@ -385,34 +632,48 @@ def preview():
         # Expand MDFCs before asking Scryfall to resolve names.
         cards = expand_mdfcs(cards)
 
-        # Aggregate quantity per (name, board) — the same card name can
-        # legitimately appear in both the mainboard and the sideboard with
-        # separate counts (e.g. a Companion).
+        # Aggregate quantity per (printing identity, board) — the same
+        # card name can legitimately appear in both the mainboard and the
+        # sideboard with separate counts (e.g. a Companion), and can also
+        # appear as two different physical printings within the same
+        # board (Moxfield's per-copy printingData split) — those need to
+        # stay as separate rows too, not merged into one generic lookup.
         quantities = defaultdict(int)
         for c in cards:
-            key = (c["name"].casefold(), c.get("board", "main"))
+            key = (card_identity(c), c.get("board", "main"))
             quantities[key] += c["quantity"]
 
-        # Only fetch each unique card name from Scryfall once, even if it
+        # Only fetch each unique printing from Scryfall once, even if it
         # appears on both boards.
-        seen_names = set()
+        seen = set()
         unique_cards = []
         for c in cards:
-            key = c["name"].casefold()
-            if key not in seen_names:
-                seen_names.add(key)
+            ident = card_identity(c)
+            if ident not in seen:
+                seen.add(ident)
                 unique_cards.append(c)
 
         scryfall_cards, missing = scryfall_collection(unique_cards)
 
-        # Cards with multiple faces (MDFC, transform, split, Adventure,
-        # Omen, ...) are requested by a single face's name (e.g. "Sagu
-        # Wildling") but Scryfall returns them under their full combined
-        # name (e.g. "Sagu Wildling // Roost Seek"). Index by every name
-        # the card could have been requested under so the lookup below
-        # always finds it, instead of silently dropping the card.
+        # Index results three ways so any of the identity kinds above can
+        # find its match:
+        #  - by Scryfall id (Moxfield's pinned printing)
+        #  - by (set, collector_number) (a Moxfield printingData split)
+        #  - by name/face name (plain decklists, or MDFC/transform/split/
+        #    Adventure/Omen cards, which Scryfall returns under their full
+        #    combined name even when requested by a single face's name)
+        scryfall_by_id = {}
+        scryfall_by_print = {}
         scryfall_by_name = {}
         for card in scryfall_cards:
+            cid = card.get("id")
+            if cid:
+                scryfall_by_id[cid] = card
+
+            set_code, number = card.get("set"), card.get("collector_number")
+            if set_code and number:
+                scryfall_by_print[(str(set_code).lower(), str(number))] = card
+
             names = {card.get("name", "")}
             for face in card.get("card_faces") or []:
                 if face.get("name"):
@@ -420,9 +681,25 @@ def preview():
             for name in names:
                 scryfall_by_name.setdefault(name.casefold(), card)
 
+        # Moxfield can pin a specific, possibly foreign-language, printing.
+        # Swap in the English version of that exact printing where one
+        # exists (keeping the same lookup keys above, so entries built
+        # from `quantities` below still resolve correctly).
+        for cid in list(scryfall_by_id):
+            scryfall_by_id[cid] = prefer_english_printing(scryfall_by_id[cid])
+        for print_key in list(scryfall_by_print):
+            scryfall_by_print[print_key] = prefer_english_printing(scryfall_by_print[print_key])
+
         rendered = []
-        for (name_key, board), qty in quantities.items():
-            card = scryfall_by_name.get(name_key)
+        for (ident, board), qty in quantities.items():
+            kind = ident[0]
+            if kind == "id":
+                card = scryfall_by_id.get(ident[1])
+            elif kind == "print":
+                card = scryfall_by_print.get((ident[1], ident[2]))
+            else:
+                card = scryfall_by_name.get(ident[1])
+
             if not card:
                 continue
             faces = card_face_images(card)
@@ -440,8 +717,17 @@ def preview():
                 "image": faces[0][1] if faces else None,
                 # Every face (1 for normal cards, 2 for MDFC/transform/split
                 # cards), each with its own name + art, used by /api/download
-                # so both sides get written to the ZIP.
-                "faces": [{"name": n, "image": u} for n, u in faces],
+                # so both sides get written to the ZIP. set_code/collector_number
+                # ride along so downloads can name files the way Scryfall does.
+                "faces": [
+                    {
+                        "name": n,
+                        "image": u,
+                        "set_code": card.get("set", ""),
+                        "collector_number": card.get("collector_number", ""),
+                    }
+                    for n, u in faces
+                ],
                 "set": card.get("set_name", ""),
                 "collector_number": card.get("collector_number", ""),
             })
@@ -534,13 +820,13 @@ def download():
                         continue
 
                     content = fetch_image(image_url)
-                    base = slug_filename(face_name)
+                    base = scryfall_filename(face)
 
                     # IMPORTANT: write one PNG for EVERY copy, per face.
                     # A 4x Hydroelectric Specimen // Hydroelectric Laboratory
                     # therefore becomes 4 front PNGs + 4 back PNGs.
                     for copy_number in range(1, quantity + 1):
-                        filename = f"{base}_{copy_number:02d}.png"
+                        filename = f"{base}-{copy_number:02d}.png"
                         zf.writestr(f"cards/{filename}", content)
 
                         manifest.append(
@@ -612,7 +898,7 @@ def download_card():
             return send_file(
                 buffer,
                 as_attachment=True,
-                download_name=f"{slug_filename(faces[0].get('name') or name)}.png",
+                download_name=f"{scryfall_filename(faces[0])}.png",
                 mimetype="image/png",
             )
 
@@ -626,7 +912,7 @@ def download_card():
                     timeout=60,
                 )
                 r.raise_for_status()
-                filename = f"{slug_filename(face.get('name') or name)}.png"
+                filename = f"{scryfall_filename(face)}.png"
                 zf.writestr(filename, r.content)
 
         memory_file.seek(0)

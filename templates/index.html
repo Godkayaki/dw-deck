@@ -202,6 +202,7 @@ function renderGrid(cards) {
       <div class="card-info">
         <strong>${escapeHtml(card.name)}</strong>
         <span>${card.quantity}× · ${escapeHtml(card.type_line)}</span>
+        ${card.set ? `<span class="card-set">${escapeHtml(card.set)}${card.collector_number ? ` #${escapeHtml(card.collector_number)}` : ""}</span>` : ""}
       </div>`;
 
     if (card.image) {
