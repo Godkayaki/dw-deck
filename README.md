@@ -2,6 +2,8 @@
 
 # Dw-Deck
 
+Dw-Deck is a tool to download a numerous number of cards in PNG using the official Scryfall API while reading lists from deckbuilding sites like Moxfield.
+
 **Features:**
 
 - Reads both pasted lists and moxfield links.
@@ -20,7 +22,7 @@
 
 ## Preview
 
-<img src="https://i.imgur.com/79HIB9I.png">
+<img src="https://i.imgur.com/6K5xlof.png">
 
 ## Run locally
 
