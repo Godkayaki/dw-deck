@@ -81,6 +81,19 @@ cards/Soporific_Springs_04.png
 - ~~Add support for printings from Moxfield.~~
 - ~~Add support for printings when pasting lists.~~ (Still needs to allow for text with no set number)
 - Language support (*this seems kinda unrealistic*).
-- Archidekt support.
 - For some reason buttons overlap the text written, to be fixed.
 - Add checkbox that indicates if the download should download multiple copies of the same card if existing in the deck.
+
+### Archidekt support
+
+Been looking into this. Archidekt does not have an integrated API built by themselves, instead, I found [pyrchidekt](https://github.com/linkian209/pyrchidekt), which is basically a thin wrapper around the following endpoint;
+
+```
+ GET https://archidekt.com/api/decks/<id>/
+ ```
+
+ However, this is kind of fragile because of two main reasons;
+ 1. Already in their README.md is stated that *"Integration tests ensure pyrchidekt works with the current API... so long as Archidekt doesn't change their API data structures, these will pass."*
+ 2. This has not been updated in the past year (at the time writing this)
+
+ With that in mind, I'll leave archidekt support there, as a thing to re-consider in the future but will not be implemeted for now.
