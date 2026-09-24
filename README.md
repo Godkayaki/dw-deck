@@ -80,7 +80,7 @@ cards/Soporific_Springs_04.png
 - ~~Be able to download a single card from the preview.~~
 - ~~Add support for printings from Moxfield.~~
 - ~~Add support for printings when pasting lists.~~ (Still needs to allow for text with no set number)
-- Language support (*this seems kinda unrealistic*).
+- Language support for cards (*this seems kinda unrealistic*).
 - For some reason buttons overlap the text written, to be fixed.
 - Add checkbox that indicates if the download should download multiple copies of the same card if existing in the deck.
 
