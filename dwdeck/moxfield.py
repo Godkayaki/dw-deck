@@ -3,7 +3,7 @@ from urllib.parse import urlparse
 
 import requests
 
-from .config import HEADERS, MOXFIELD_API
+from .config import MOXFIELD_API
 from .identity import card_identity
 
 
@@ -219,15 +219,38 @@ def extract_moxfield_cards(payload):
     return result
 
 
+# Moxfield's API sits behind Cloudflare-style bot protection, and our
+# generic "MTG Card Image Downloader" User-Agent (fine for Scryfall,
+# which has no such protection) reads as an obvious script rather than a
+# browser. Impersonating a real browser's request headers here is often
+# enough to get past a basic UA check — though if the block is instead
+# based on IP reputation (common for cloud/datacenter IPs, which is what
+# most hosting platforms use), no header combination will fix it.
+MOXFIELD_HEADERS = {
+    "User-Agent": (
+        "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 "
+        "(KHTML, like Gecko) Chrome/128.0.0.0 Safari/537.36"
+    ),
+    "Accept": "application/json, text/plain, */*",
+    "Accept-Language": "en-US,en;q=0.9",
+    "Origin": "https://moxfield.com",
+    "Referer": "https://moxfield.com/",
+}
+
+
 def fetch_moxfield(url):
     deck_id = moxfield_deck_id(url)
     endpoint = MOXFIELD_API.format(deck_id=deck_id)
 
-    r = requests.get(
-        endpoint,
-        headers={**HEADERS, "Referer": "https://moxfield.com/"},
-        timeout=20,
-    )
+    r = requests.get(endpoint, headers=MOXFIELD_HEADERS, timeout=20)
+
+    if r.status_code == 403:
+        raise ValueError(
+            "Moxfield blocked this request (HTTP 403). This is usually "
+            "Moxfield's bot protection rejecting requests from this "
+            "server's IP address, rather than anything wrong with the "
+            "deck or the URL."
+        )
     if r.status_code != 200:
         raise ValueError(
             f"Moxfield could not be read (HTTP {r.status_code}). "
