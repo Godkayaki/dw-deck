@@ -203,6 +203,11 @@ def download():
         if not cards:
             return jsonify({"error": "Preview the deck first."}), 400
 
+        # Defaults to True so older frontend payloads (or anything that
+        # doesn't send the flag) keep getting a manifest, same as before
+        # this became optional.
+        generate_manifest = bool(payload.get("generate_manifest", True))
+
         memory_file = io.BytesIO()
 
         with zipfile.ZipFile(
@@ -251,24 +256,32 @@ def download():
 
                     # IMPORTANT: write one PNG for EVERY copy, per face.
                     # A 4x Hydroelectric Specimen // Hydroelectric Laboratory
-                    # therefore becomes 4 front PNGs + 4 back PNGs.
+                    # therefore becomes 4 front PNGs + 4 back PNGs. Only
+                    # append a "-01"/"-02" copy suffix when there's actually
+                    # more than one copy — a lone card just gets the plain
+                    # Scryfall-style filename, no numbering.
                     for copy_number in range(1, quantity + 1):
-                        filename = f"{base}-{copy_number:02d}.png"
+                        filename = (
+                            f"{base}.png" if quantity == 1
+                            else f"{base}-{copy_number:02d}.png"
+                        )
                         zf.writestr(f"cards/{filename}", content)
 
-                        manifest.append(
-                            ",".join([
-                                '"' + name.replace('"', '""') + '"',
-                                '"' + (face_name if is_multi_face else "").replace('"', '""') + '"',
-                                str(copy_number),
-                                '"' + card.get("type", "").replace('"', '""') + '"',
-                                '"' + card.get("set", "").replace('"', '""') + '"',
-                                '"' + card.get("collector_number", "").replace('"', '""') + '"',
-                                '"' + filename + '"',
-                            ])
-                        )
+                        if generate_manifest:
+                            manifest.append(
+                                ",".join([
+                                    '"' + name.replace('"', '""') + '"',
+                                    '"' + (face_name if is_multi_face else "").replace('"', '""') + '"',
+                                    str(copy_number),
+                                    '"' + card.get("type", "").replace('"', '""') + '"',
+                                    '"' + card.get("set", "").replace('"', '""') + '"',
+                                    '"' + card.get("collector_number", "").replace('"', '""') + '"',
+                                    '"' + filename + '"',
+                                ])
+                            )
 
-            zf.writestr("manifest.csv", "\n".join(manifest))
+            if generate_manifest:
+                zf.writestr("manifest.csv", "\n".join(manifest))
 
         memory_file.seek(0)
 

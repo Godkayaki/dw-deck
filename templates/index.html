@@ -32,8 +32,8 @@
       <div id="list-input">
         <textarea name="decklist" placeholder="4 Lightning Bolt
 4 Mountain
-2 Sol Ring (LTC)
-1 Urza, Lord High Artificer (H1R) 11"></textarea>
+2 Sol Ring
+1 Atraxa, Praetors' Voice"></textarea>
       </div>
 
       <div id="moxfield-input" class="hidden">
@@ -52,9 +52,17 @@
         <h2>Cards</h2>
         <p id="summary"></p>
       </div>
-      <button id="download" class="primary">Download PNG ZIP</button>
+      <div class="download-controls">
+        <span id="download-notice" class="download-notice hidden">Downloading decklist, this may take a bit</span>
+        <div class="download-actions">
+          <button id="download" class="primary">Download PNG ZIP</button>
+          <label class="manifest-toggle">
+            <input type="checkbox" id="manifest-toggle" checked>
+            Generate manifest.csv
+          </label>
+        </div>
+      </div>
     </div>
-    <p id="download-notice" class="download-notice hidden">Downloading decklist, this may take a bit</p>
 
     <div id="missing" class="warning hidden"></div>
     <div id="groups"></div>
@@ -88,6 +96,7 @@ const summary = document.getElementById("summary");
 const missing = document.getElementById("missing");
 const downloadBtn = document.getElementById("download");
 const downloadNotice = document.getElementById("download-notice");
+const manifestToggle = document.getElementById("manifest-toggle");
 
 let currentCards = [];
 
@@ -268,6 +277,7 @@ async function downloadSingleCard(card, button) {
 downloadBtn.addEventListener("click", async () => {
   downloadBtn.disabled = true;
   downloadBtn.textContent = "Building ZIP…";
+  manifestToggle.disabled = true;
 
   const totalCopies = currentCards.reduce((sum, card) => sum + card.quantity, 0);
   downloadNotice.classList.toggle("hidden", totalCopies <= 60);
@@ -276,7 +286,10 @@ downloadBtn.addEventListener("click", async () => {
     const response = await fetch("/api/download", {
       method: "POST",
       headers: {"Content-Type": "application/json"},
-      body: JSON.stringify({cards: currentCards})
+      body: JSON.stringify({
+        cards: currentCards,
+        generate_manifest: manifestToggle.checked
+      })
     });
 
     if (!response.ok) {
@@ -298,6 +311,7 @@ downloadBtn.addEventListener("click", async () => {
     downloadBtn.disabled = false;
     downloadBtn.textContent = "Download PNG ZIP";
     downloadNotice.classList.add("hidden");
+    manifestToggle.disabled = false;
   }
 });
 

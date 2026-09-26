@@ -52,12 +52,38 @@ input[type=url] { min-height: auto; }
 }
 .results-header h2 { margin: 0 0 4px; }
 .results-header p { margin: 0; color: #aaa; }
+.download-controls {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+}
+.download-actions {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 6px;
+}
 .download-notice {
   color: #ff7b7b;
-  margin: 10px 0 0;
-  text-align: right;
   font-size: 14px;
+  white-space: nowrap;
 }
+.manifest-toggle {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin: 0;
+  padding-right: 10;
+  color: #aaa;
+  font-size: 13px;
+  cursor: pointer;
+  user-select: none;
+}
+.manifest-toggle input { cursor: pointer; }
+.manifest-toggle input:disabled,
+.manifest-toggle:has(input:disabled) { cursor: default; opacity: .6; }
 .warning {
   background: #3a2c11; color: #ffd98a;
   padding: 12px 14px; border-radius: 9px; margin-bottom: 14px;
