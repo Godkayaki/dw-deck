@@ -40,7 +40,13 @@
         <input type="url" name="moxfield_url" placeholder="https://moxfield.com/decks/...">
       </div>
 
-      <button class="primary" type="submit">Preview cards</button>
+      <div class="preview-actions">
+        <button class="primary" type="submit">Preview cards</button>
+        <div id="moxfield-warning" class="moxfield-warning hidden">
+          <span class="warning-icon">⚠️</span>
+          <span>Hosted deployments can get blocked fetching Moxfield URLs directly. If this fails, export the decklist as text from Moxfield and paste it in the "Deck list" tab instead.</span>
+        </div>
+      </div>
     </form>
 
     <div id="status"></div>
@@ -89,6 +95,7 @@ const form = document.getElementById("preview-form");
 const source = document.getElementById("source");
 const listInput = document.getElementById("list-input");
 const moxfieldInput = document.getElementById("moxfield-input");
+const moxfieldWarning = document.getElementById("moxfield-warning");
 const statusEl = document.getElementById("status");
 const results = document.getElementById("results");
 const groups = document.getElementById("groups");
@@ -107,6 +114,7 @@ document.querySelectorAll(".tab").forEach(button => {
     source.value = button.dataset.source;
     listInput.classList.toggle("hidden", source.value !== "list");
     moxfieldInput.classList.toggle("hidden", source.value !== "moxfield");
+    moxfieldWarning.classList.toggle("hidden", source.value !== "moxfield");
   });
 });
 

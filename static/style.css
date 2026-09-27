@@ -41,6 +41,22 @@ textarea, input[type=url] {
 input[type=url] { min-height: auto; }
 .primary { background: #4f46e5; color: white; margin-top: 14px; }
 .primary:disabled { opacity: .6; cursor: wait; }
+.preview-actions { display: flex; align-items: stretch; gap: 12px; flex-wrap: wrap; }
+.preview-actions .primary { margin-top: 14px; }
+.moxfield-warning {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  background: #3a2c11;
+  color: #ffd98a;
+  border-radius: 9px;
+  padding: 10px 14px;
+  margin-top: 14px;
+  font-size: 13px;
+  line-height: 1.4;
+  flex: 1 1 260px;
+}
+.warning-icon { flex-shrink: 0; font-size: 16px; }
 .hidden { display: none !important; }
 #status { margin-top: 12px; min-height: 22px; }
 .loading { color: #f0c674; }
@@ -75,7 +91,6 @@ input[type=url] { min-height: auto; }
   align-items: center;
   gap: 6px;
   margin: 0;
-  padding-right: 10;
   color: #aaa;
   font-size: 13px;
   cursor: pointer;
