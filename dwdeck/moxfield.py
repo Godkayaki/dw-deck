@@ -246,10 +246,12 @@ def fetch_moxfield(url):
 
     if r.status_code == 403:
         raise ValueError(
-            "Moxfield blocked this request (HTTP 403). This is usually "
-            "Moxfield's bot protection rejecting requests from this "
-            "server's IP address, rather than anything wrong with the "
-            "deck or the URL."
+            "Moxfield blocked this request (HTTP 403) — this is Moxfield's "
+            "bot protection rejecting requests from this server, not "
+            "anything wrong with the deck or the URL. In Moxfield, use "
+            "the deck's Export menu to copy the decklist as text, then "
+            "paste it into the \"Deck list\" tab instead — that path "
+            "doesn't go through this server-to-server request at all."
         )
     if r.status_code != 200:
         raise ValueError(
