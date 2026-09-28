@@ -36,6 +36,7 @@ textarea, input[type=url] {
   border-radius: 9px;
   color: #eee;
   padding: 14px;
+  resize: vertical;
   font: 14px/1.5 ui-monospace, SFMono-Regular, Menlo, monospace;
 }
 input[type=url] { min-height: auto; }
@@ -91,6 +92,7 @@ input[type=url] { min-height: auto; }
   align-items: center;
   gap: 6px;
   margin: 0;
+  padding-right: 10px;
   color: #aaa;
   font-size: 13px;
   cursor: pointer;
