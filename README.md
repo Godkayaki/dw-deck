@@ -1,4 +1,4 @@
-<p align="center"> <img src="logo/logo.png" width="120"> </p>
+<p align="center"> <img src="logo/logo.svg" width="120"> </p>
 
 # Dw-Deck
 
@@ -13,6 +13,7 @@ Dw-Deck is a tool to download a numerous number of cards in PNG using the offici
 - Previews MDFC cards with no issues and downloads both frontside and backside of cards.
 - Includes a `manifest.csv` file inside the ZIP.
 - Zip will also include multiple copies of a card under the **"*_05"** format.
+- Download naming of the card has the same standard as scryfall (**[SET]-[NUMBER]-[NAME].png**)
 
 **Extra info:**
 
@@ -45,13 +46,13 @@ Runs on http://127.0.0.1:5000 by default.
 4 Lightning Bolt
 ```
 
-The ZIP file would contain 4 copies of Lightning Bolt with the "*_04" format;
+The ZIP file would contain 4 copies of Lightning Bolt with the "*_04" format (set and set number are just an example);
 
 ```text
-cards/Lightning_Bolt_01.png
-cards/Lightning_Bolt_02.png
-cards/Lightning_Bolt_03.png
-cards/Lightning_Bolt_04.png
+cards/p09-146-Lightning_Bolt_01.png
+cards/p09-146-Lightning_Bolt_02.png
+cards/p09-146-Lightning_Bolt_03.png
+cards/p09-146-Lightning_Bolt_04.png
 ```
 
 **For an MDFC:**
@@ -60,18 +61,20 @@ cards/Lightning_Bolt_04.png
 4 Sink into Stupor // Soporific Springs
 ```
 
-If you would download 4 copies of *Sink into Stupor // Soporific Springs*, the ZIP would contain four PNGs of each face (8 PNG files total);
+If you would download 4 copies of *Sink into Stupor // Soporific Springs*, the ZIP would contain four PNGs of each face (8 PNG files total | set and set number are just an example);
 
 ```text
-cards/Sink_into_Stupor_01.png
-cards/Sink_into_Stupor_02.png
-cards/Sink_into_Stupor_03.png
-cards/Sink_into_Stupor_04.png
-cards/Soporific_Springs_01.png
-cards/Soporific_Springs_02.png
-cards/Soporific_Springs_03.png
-cards/Soporific_Springs_04.png
+cards/mh3-241-Sink_into_Stupor_01.png
+cards/mh3-241-Sink_into_Stupor_02.png
+cards/mh3-241-Sink_into_Stupor_03.png
+cards/mh3-241-Sink_into_Stupor_04.png
+cards/mh3-241-Soporific_Springs_01.png
+cards/mh3-241-Soporific_Springs_02.png
+cards/mh3-241-Soporific_Springs_03.png
+cards/mh3-241-Soporific_Springs_04.png
 ```
+
+This is only applicable to multiple copies of a single card.
 
 ## WIP
 
@@ -83,6 +86,8 @@ cards/Soporific_Springs_04.png
 - Language support for cards (*this seems kinda unrealistic*).
 - For some reason buttons overlap the text written, to be fixed.
 - Add checkbox that indicates if the download should download multiple copies of the same card if existing in the deck.
+- ~~Add checkbox that lets you select the manifest.csv download (ON by default)~~
+- **Fix Moxfield reach from onrender host** - This is kind of critical ngl
 
 ### Archidekt support
 
